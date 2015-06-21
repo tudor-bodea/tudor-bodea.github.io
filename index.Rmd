@@ -1,0 +1,325 @@
+---
+title: "Predicting Activity Quality from Activity Monitors via Machine Learning Algorithms"
+author: "Tudor Bodea"
+date: "June 2015"
+output: html_document
+---
+#
+#
+#
+
+Word count (excluding the Appendix): 1,267; Figure count: 2
+
+\
+
+
+#
+#
+#
+
+__Abstract:__ In this work, I report on whether or not machine learning techniques could be used to successfully identify how well certain physical activities are performed by wearers of quantified self movement devices (e.g., `Jawbone Up`, `Nike FuelBand` and `Fitbit`). Building on a data set publicly available online at `http://groupware.les.inf.puc-rio.br/har`, my analysis indicates that certain classes of machine learning techniques are well suited for the automatic and robust detection of physical activity execution mistakes. If this proves correct in other contexts, providing immediate (real-time) feedback to the user on the quality of her execution may become a (monetized) reality in the not so distant future.
+
+\
+
+
+#
+#
+#
+
+#### I. Introduction
+
+#
+#
+#
+
+In the recent years, quantifying without supervision, that is, without a personal trainer, the quality of the execution of a physical task has started to receive increased attention. As this research area matures, it is to be expected that members of several social life groups (among others) will take full advantage of the corresponding developments and consume this information as a means to improve their health, tone and life-style. In this context, the work reported here contributes to the unsupervised identification of the quality of the execution of certain physical activities performed by wearers of quantified self movement devices. In the original study from which the data was borrowed, 6 participants equipped with on-body sensors were asked to perform repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), or, involving the most common types of execution mistakes (Classes B through E). Using this data set, I report next on the class prediction accuracy of several machine learning techniques, algorithms that may eventually power the unsupervised guidance offered to users of self movement devices.
+
+#
+#
+#
+
+#### II. Data Loading, Cleaning & Transformation
+
+#
+#
+#
+
+The activity quality data is available in a comma separated value (csv) format from [Groupware@LES](http://groupware.les.inf.puc-rio.br/har), a group that promotes research and development of groupware technologies. Our working data set (i.e., `pml-training.csv`) consists of 19,622 records on 158 possible activity monitor predictors (or, explanatory variables). Each of these records comes with its own true activity quality class: A (according to the specifications), or, B through E (classes B through E describe various types of execution mistakes). Including the activity quality class, the working data set reflects data on 159 variables.
+
+As a preamble to the actual analysis, I loaded the data in `R` using the `read.table` command. Since many entries in the data set were either missing strings (i.e., `""`), error codes (i.e., `"#DIV/0!"`), or, truly missing values (i.e., `NA`), I flagged all these entries as missing value entries and loaded them into `R` (via `read.table`) accordingly. Next, I summarized the content of all variables based on the number & proportion of missing values and learned that they grouped into two distinct classes: one with no missing value variables (59 variables) and another one with more than 95% missing value variables (100 variables). To summarize the variables based on the missing values, I used snippets of the code that Stephen Turner posted on his [personal blog](http://www.gettinggeneticsdone.com/2011/02/summarize-missing-data-for-all.html). To avoid subsequent sample size and computational issues, I removed the entire class of more than 95% missing value variables from the working data set. In addition, to avoid possible miss-learnings while training the machine learning algorithms, I removed from the working data set the user identifier (1 variable) and all time and time window variables (5 variables). After cleaning the data, the working data set consisted of 19,622 records on 53 variables (which included the activity quality class).
+
+To set up a proper train and test environment for the machine learning techniques, I randomly split the working data set into training (60%) and testing (40%) data partitions using `createDataPartition` command from the contributed `R` package `caret`. I settled on the 60% percentage of data that went into the training partition for practical yet sound methodological reasons. First, I wanted the training and the testing operations to be well represented and served. Hence, a training percentage between 60% and 80% made sense. In addition, given that the higher training percentages came on my machine (see [Section 1](#Section1) of the Appendix) with either high run times (e.g., the `random forest` algorithm concluded in 6:34 hours when the training percentage was 75%) or RAM memory exceptions (e.g., the `naive Bayes` algorithm ran out-of-memory when the training percentage was 75%), I decided to use a training percentage of 60%. Therefore, all the results discussed in the following paragraphs reflect this ever existing trade-off between methodological needs and system requirements.
+
+For reproducibility, I provide in [Sections 1](#Section1) [and 2](#Section2) of the Appendix the information about the current `R` session (via `sessionInfo`) and the relevant data loading, cleaning & transformation code chunks, respectively.
+
+#
+#
+#
+
+#### III. Data Analysis and Results
+
+To quantify how well I recover the observed quality of the execution of the physical tasks undertaken by the wearers of self movement devices, I used several machine learning techniques including decision trees (`rpart`), random forest (`rf`) and model-based classification algorithms (linear discriminant analysis `lda` and naive Bayes `nb`). All these algorithms were trained on the training data partition and subsequently tested on the testing data set.
+
+To train the models, I used the `train` command from the `R` contributed package `caret`. `train` is a complex wrapper that calls functions available in other `R` contributed packages. At a very high level, `train` sets up a universe (or, grid) of tuning parameters, fits the corresponding models and recommends the best one using re-sampling based performance measures. In my work, to make sure that the out-of-sample errors are contained and represented, `train` traverses the universe of tuning parameters, re-samples through 10-fold cross validation with 5 repetitions the training partition, sets up the corresponding sub-training and sub-testing partitions and determines the optimal parameter set based on the prediction performance on the sub-testing partitions. For completion, I provide insights into each of the best models in the corresponding sections of the Appendix.
+
+To further get a sense for how well my machine learning models are going to perform on new data, I predicted the activity quality class of all records in the testing data set and compared the predictions against the known quality classes of these observations. Some of the accuracy summary statistics are shown in the table below and in the corresponding sections of the Appendix. Of all the machine learning techniques utilized in this work, random forest performs best - on the testing data set, random forest shows a predictive accuracy of 0.9687 or, equivalently, 96.87%. As shown in the corresponding [variable importance](#varImp1) plot, for random forest, `pitch_belt`, `roll_belt`, `pitch_forearm`, `magnet_dumbbell_y` and `magnet_dumbbell_z` are the top predictors that impact the classification for each class.
+
+\
+
+<a name="Table1"></a> __Table 1:__ Accuracy Summary Statistics (Test Data Set)
+
+|ML Technique|`train` with ...|Test-Sample Accuracy|Accuracy|Appendix Section Reference|
+|------------|----------------|:--------------------:|:-------:|:--------------------------:|
+|Decision Trees|`rpart`|0.4978|Low|[Section 3](#Section3)|
+|Random Forest|`rf`|0.9687|Excellent|[Section 4](#Section4)|
+|Linear Discriminant Analysis|`lda`|0.6956|Medium|[Section 5](#Section5)|
+|Naive Bayes|`nb`|0.7112|Medium|[Section 6](#Section6)|
+
+#
+#
+#
+
+#### IV. Concluding Remarks
+
+#
+#
+#
+
+The encouraging results reported in [Table 1](#Table1) for random forest suggest that the machine learning techniques may prove, slowly but surely, to be capable of quantifying how well certain physical tasks are executed by wearers of self movement devices. Building on this and other similar findings, the field of human activity recognition is poised for success - as more and more applications, algorithms and devices are explored and developed, the reliance on machine learning techniques for immediate and reliable user feedback ought to become "as natural as the pattern that was made by the dust on a butterfly's wings" (Ernst Hemingway).
+
+#
+#
+#
+
+\
+\
+\
+\
+
+
+
+
+### APPENDIX
+
+#
+#
+#
+
+#### <a name="Section1"></a> 1. Session Info
+
+```{r sessionInfo, echo=FALSE}
+sessionInfo()
+```
+
+```{r, echo=FALSE}
+# REMOVE (ALMOST) EVERYTHING IN THE WORKING ENVIRONMENT
+rm(list=ls(all=TRUE))
+# LOAD PACKAGE dplyr QUIETLY
+suppressMessages(suppressWarnings(require(dplyr)))
+# LOAD PACKAGE caret QUIETLY
+library(rpart)
+suppressMessages(suppressWarnings(require(randomForest)))
+suppressMessages(suppressWarnings(require(caret)))
+# LOAD rattle PACKAGE
+suppressMessages(suppressWarnings(require(rattle)))
+# LOAD MASS PACKAGE
+suppressMessages(suppressWarnings(require(MASS)))
+# LOAD knitr PACKAGE
+library(knitr)
+# SET GLOBAL OPTION echo TO TRUE
+opts_chunk$set(echo=FALSE)
+# SET WORKING DIRECTORY
+setwd("C:/Work/Personal/Personal/Coursera/8-PracticalMachineLearning/Project")
+```
+
+#
+#
+#
+
+#### <a name="Section2"></a> 2. Data Loading, Cleaning & Transformation
+
+#
+#
+#
+
+In the `R` code chunk below, the `propmiss` function was written by Stephen Turner and is available as is on his [blog](http://www.gettinggeneticsdone.com/2011/02/summarize-missing-data-for-all.html) on genetics & bioinformatics.
+
+```{r LoadCleanData, echo=TRUE, cache=TRUE}
+##### LOAD AND CLEAN UP THE DATA
+# FUNCTION TO HELP FILTER OUT NA COLUMNS
+propmiss <- function(dataframe) {
+    m <- sapply(dataframe, function(x) {
+		data.frame(
+			nmiss=sum(is.na(x)), 
+			n=length(x), 
+			propmiss=sum(is.na(x))/length(x)
+		)
+	})
+	d <- data.frame(t(m))
+	d <- sapply(d, unlist)
+	d <- as.data.frame(d)
+	d$variable <- row.names(d)
+	row.names(d) <- NULL
+	d <- cbind(d[ncol(d)],d[-ncol(d)])
+	return(d[order(d$propmiss), ])
+}
+# LOAD COURSERA TRAINING DATA
+data <- read.table(file="pml-training.csv", sep=",", header=TRUE, row.names=1, 
+	na.strings=c("#DIV/0!", "", NA))
+# SELECT AND REMOVE VARIABLES WITH MORE THAN 95% MISSING VALUES
+tmp <- propmiss(data)
+mv <- tmp[tmp[,4] >= 0.95,1]
+data <- data[,!(names(data) %in% mv)]
+# REMOVE USER NAME AND TIME RELATED VARIABLES
+data <- data[,-(1:6)]
+##### CREATE A TRAINING AND A TESTING DATA SET
+set.seed(14398233)
+inTrain <- createDataPartition(y=data$classe, p=0.6, list=FALSE)
+training <- data[inTrain,]
+testing <- data[-inTrain,]
+##### LOAD COURSERA TESTING DATA
+test <- read.table(file="pml-testing.csv", sep=",", header=TRUE, row.names=1, 
+    na.strings=c("#DIV/0!", "", NA))
+test <- test[,names(test) %in% names(data)]
+```
+
+#
+#
+#
+
+#### 3. Decision Trees: `train` with `rpart`
+
+#
+#
+#
+
+__`rpart` Model__
+
+```{r rpart, cache=TRUE, echo=TRUE, eval=TRUE, dependson="LoadCleanData"}
+modfit1 <- train(classe~., method="rpart", data=training, trControl = 
+                     trainControl(trim=TRUE, method = "repeatedcv", number = 10, repeats = 5))
+print(modfit1$finalModel)
+```
+
+__`rpart` Model Plot__
+
+```{r rpart2, width=5, eval=TRUE}
+fancyRpartPlot(modfit1$finalModel, sub="")
+```
+
+__Figure 1:__ `rpart` Model Plot
+
+\
+
+
+<a name="Section3"></a> __`rpart` Predict Performance on the Testing Data Set__
+
+```{r rpart4, eval=TRUE}
+pred1 <- predict(modfit1, testing)
+cm1 <- confusionMatrix(pred1, testing$classe)
+cm1
+```
+
+```{r rpart6, eval=FALSE}
+pred11 <- predict(modfit1, test)
+pred11
+```
+
+#
+#
+#
+
+#### 4. Random Forest: `train` with `rf`
+
+#
+#
+#
+
+__`rf` Model__
+
+```{r rf, cache=TRUE, echo=TRUE, eval=TRUE, dependson="LoadCleanData"}
+modfit2 <- train(classe~., method="rf", data=training, importance=TRUE, 
+                 trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5))
+modfit2
+```
+
+<a name="Section4"></a> __`rf` Predict Performance on the Testing Data Set__
+
+```{r rf2, cache=TRUE, eval=TRUE}
+pred2 <- predict(modfit2, testing)
+cm2 <- confusionMatrix(pred2, testing$classe)
+cm2
+```
+
+```{r rf4, eval=FALSE}
+pred22 <- predict(modfit2, test)
+pred22
+```
+
+<a name="varImp1"></a> __`rf` Variable Importance Plot__
+
+```{r rf6, eval=TRUE, width=5, echo=TRUE}
+vi <- varImp(modfit2)
+vi
+# PLOT TOP 10 IMPORTANT VARIABLES
+plot(vi, top = 10)
+```
+
+__Figure 2:__ `rf` Variable Importance Plot
+
+\
+
+
+#
+#
+#
+
+#### 5. Model Based Predictions - Linear Discriminant Analysis: `train` with `lda`
+
+#
+#
+#
+
+__`lda` Model__
+
+```{r lda, cache=TRUE, echo=TRUE, eval=TRUE, dependson="LoadCleanData"}
+modfit3 <- train(classe~., method="lda", data=training, 
+                 trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5))
+modfit3
+```
+
+<a name="Section5"></a> __`lda` Predict Performance on the Testing Data Set__
+
+```{r lda2, cache=TRUE, eval=TRUE}
+pred3 <- predict(modfit3, testing)
+cm3 <- confusionMatrix(pred3, testing$classe)
+cm3
+```
+
+#
+#
+#
+
+#### 6. Model Based Predictions - Naive Bayes: `train` with `nb`
+
+#
+#
+#
+
+__`nb` Model__
+
+```{r nb, cache=TRUE, echo=TRUE, eval=TRUE, dependson="LoadCleanData"}
+modfit4 <- suppressWarnings(train(classe~., method="nb", data=training, verbose=FALSE,
+                 trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5)))
+modfit4
+```
+
+<a name="Section6"></a> __`nb` Predict Performance on the Testing Data Set__
+
+The predict performance summary statistics are not shown for `naive Bayes` because the `predict` function below returns a warning message of the type `Numerical 0 probability for all classes with ## observation X` for every observation X in the testing data set. These warning messages consume a lot of white space which makes the appearance of this submission not appealing. Just as an FYI, the issue of the `Numerical 0 probability` is documented [here](http://r.789695.n4.nabble.com/klaR-package-NaiveBayes-warning-message-numerical-0-probability-td3025567.html).  
+
+```{r nb2, cache=TRUE, eval=FALSE, echo=TRUE}
+pred4 <- predict(modfit4, testing)
+cm4 <- confusionMatrix(pred4, testing$classe)
+cm4
+```
