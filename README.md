@@ -1,4 +1,4 @@
-YOu can view the content of the github repository at:
+You can view the content of the github repository at:
 
 https://github.com/tudor-bodea/tudor-bodea.github.io
 
